@@ -137,7 +137,9 @@ public class SmartHomeServer
 				if (statusChanged) // Send new status to Android device
 				{
 					System.out.println("The new status is :" + status);
+					statusChanged = false;
 					out.print(status);
+					
 				}
 				Thread.yield();
 			}
