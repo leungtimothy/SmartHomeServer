@@ -1,6 +1,7 @@
 package elec291group2.com.SmartHomeServer;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -14,6 +15,7 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Scanner;
 
+import org.apache.commons.io.IOUtils;
 import org.json.JSONObject;
 import org.json.JSONException;
 
@@ -59,8 +61,6 @@ public class SmartHomeServer
 				String commandOut = commandQueue.poll();
 				System.out.println("Command sent: " + commandOut);
 				
-				/*
-				 * 
 				// If command begins with 'register'
 				if (commandOut
 					.substring( 0, Math.min(commandOut.length(), Constants.REGISTER.length()) )
@@ -70,8 +70,6 @@ public class SmartHomeServer
 					String token = commandOut.substring(Constants.REGISTER.length(), commandOut.length());
 					registerDeviceToken(token);
 				}
-				
-				*/
 			}
 
 			// Process the serial in and update the status/ status flag
@@ -161,7 +159,7 @@ public class SmartHomeServer
 						break;
 					}
 					
-					System.out.println("The new command is: " + s);
+					//System.out.println("The new command is: " + s);
 					commandQueue.add(s);
 				}
 
@@ -192,23 +190,34 @@ public class SmartHomeServer
     	if (token != null)
     	{
     		deviceTokens.add(token);
+    		System.out.println("Device token successfully registered!");
+    		sendPushNotification("Push notification test");
     	}
     }
 	
     /*
      *  Sends notification message to all tokens/devices registered to the server.
      *  Uses HTTP POST protocol to send a downstream message to GCM server.
+     *  Maximum # of recipients per push: 1000
      */
-    private void sendPushNotification(String message) throws IOException, JSONException
+    private void sendPushNotification(String message)
     {
         try
         {
-            JSONObject jInputData = new JSONObject();
+        	JSONObject jMessage = new JSONObject();
             JSONObject jGcmData = new JSONObject();
-
-            jInputData.get(message);
-            jGcmData.put("data", jInputData);
-
+            String[] recipients = new String[Math.min(deviceTokens.size(), 1000)]; 
+            for (int i = 0; i < recipients.length; i++)
+            {
+            	recipients[i] = deviceTokens.get(i);
+            }
+            
+            // Set main message 'data' field     
+            jMessage.put("message", message);
+            jGcmData.put("data", jMessage);
+            // Set message recipients (which device tokens to push to)
+            jGcmData.put("registration_ids", recipients);
+            	
             // Create connection to send GCM Message Request
             URL url = new URL("https://android.googleapis.com/gcm/send");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -217,14 +226,15 @@ public class SmartHomeServer
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
 
-            // TODO: send to all device tokens.
-            
             // Send GCM message content.
             OutputStream outputStream = conn.getOutputStream();
             outputStream.write(jGcmData.toString().getBytes());
-            outputStream.flush();
 
-            // TODO: Read GCM response?
+            System.out.println("\nHTTP POST request sent: \n" + jGcmData.toString(4));
+            
+            InputStream inputStream = conn.getInputStream();
+            String resp = IOUtils.toString(inputStream);
+            System.out.println("GCM server response:" + resp);
         }
         catch (IOException | JSONException e)
         {
