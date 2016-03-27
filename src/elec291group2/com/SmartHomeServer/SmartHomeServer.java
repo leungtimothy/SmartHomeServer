@@ -1,3 +1,4 @@
+package elec291group2.com.SmartHomeServer;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -16,11 +17,10 @@ import java.util.Scanner;
 import org.json.JSONObject;
 import org.json.JSONException;
 
+import elec291group2.com.SmartHomeServer.Constants;
 
 public class SmartHomeServer
 {
-	public static final int DEFAULT_PORT = 1234;
-    private static final String API_KEY = "AIzaSyBkZYi2bPohSJCxkAqlqS_X-DLO9xTKikM";
     private List<String> deviceTokens;
     
 	private ServerSocket serverSocket;
@@ -59,7 +59,19 @@ public class SmartHomeServer
 				String commandOut = commandQueue.poll();
 				System.out.println("Command sent: " + commandOut);
 				
-				//if (commandOut.substring(0, Math.min(s.length(), 7).equals("register"))
+				/*
+				 * 
+				// If command begins with 'register'
+				if (commandOut
+					.substring( 0, Math.min(commandOut.length(), Constants.REGISTER.length()) )
+					.equals(Constants.REGISTER))
+				{
+					// Remaining part of string is the token
+					String token = commandOut.substring(Constants.REGISTER.length(), commandOut.length());
+					registerDeviceToken(token);
+				}
+				
+				*/
 			}
 
 			// Process the serial in and update the status/ status flag
@@ -201,7 +213,7 @@ public class SmartHomeServer
             URL url = new URL("https://android.googleapis.com/gcm/send");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Authorization", "key=" + API_KEY);
+            conn.setRequestProperty("Authorization", "key=" + Constants.API_KEY);
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
 
