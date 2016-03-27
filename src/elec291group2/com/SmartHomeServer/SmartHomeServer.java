@@ -10,8 +10,9 @@ import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
-import java.util.List;
+import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Set;
 import java.util.Queue;
 import java.util.Scanner;
 
@@ -23,7 +24,7 @@ import elec291group2.com.SmartHomeServer.Constants;
 
 public class SmartHomeServer
 {
-    private List<String> deviceTokens;
+    private Set<String> deviceTokens;
     
 	private ServerSocket serverSocket;
 
@@ -44,7 +45,7 @@ public class SmartHomeServer
 	public SmartHomeServer(int port) throws IOException
 	{
 		serverSocket = new ServerSocket(port);
-		deviceTokens = new LinkedList<String>(); 
+		deviceTokens = new HashSet<String>(); 
 	}
 
 	public void arduino()
@@ -206,11 +207,7 @@ public class SmartHomeServer
         {
         	JSONObject jMessage = new JSONObject();
             JSONObject jGcmData = new JSONObject();
-            String[] recipients = new String[Math.min(deviceTokens.size(), 1000)]; 
-            for (int i = 0; i < recipients.length; i++)
-            {
-            	recipients[i] = deviceTokens.get(i);
-            }
+            String[] recipients = deviceTokens.toArray(new String[0]);
             
             // Set main message 'data' field     
             jMessage.put("message", message);
