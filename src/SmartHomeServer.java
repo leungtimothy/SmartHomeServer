@@ -7,6 +7,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.Scanner;
 
 public class SmartHomeServer
 {
@@ -17,7 +18,6 @@ public class SmartHomeServer
 
 	// This is the status variable that will be true if a new status string
 	// needs to be sent
-	boolean statusChanged = false;
 
 	// This is the status string that the Arduino will send to the Android
 	// Device
@@ -37,6 +37,7 @@ public class SmartHomeServer
 
 	public void arduino()
 	{
+		
 		System.out.println("Arduino communication thread started.");
 		while (true)
 		{
@@ -50,11 +51,7 @@ public class SmartHomeServer
 			}
 
 			// Process the serial in and update the status/ status flag
-
-			status = "";
-			statusChanged = false;
-			
-			
+		
 			Thread.yield();
 		}
 	}
@@ -125,28 +122,41 @@ public class SmartHomeServer
 		PrintWriter out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true);
 		try
 		{
+			String lastStatus = "";
+			
 			while (true)
 			{
-				String s = in.readLine();
-				if (!(s == null))  // Retrieve command from Android device, add to device queue 
+				
+				
+				if (in.ready())  // Retrieve command from Android device, add to device queue 
 				{
+					String s = in.readLine();
+					if(s.equals("exit"))
+					{
+						System.err.println("A client has ended the connection.");
+						break;
+					}
+					
 					System.out.println("The new command is: " + s);
 					commandQueue.add(s);
 				}
 
-				if (statusChanged) // Send new status to Android device
+				if (!lastStatus.equals(status)) // Send new status to Android device
 				{
-					System.out.println("The new status is :" + status);
-					statusChanged = false;
-					out.print(status);
+					System.out.println("The new status is : " + status);
+					out.println(status);
+					out.flush();
+					lastStatus = status;
 					
 				}
+				//out.println("hi");
 				Thread.yield();
 			}
 		} catch (Exception e)
 		{
 
 		}
+		System.err.println("Thread closed.");
 	}
 
 	public static void main(String[] args) throws IOException
