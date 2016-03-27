@@ -1,18 +1,27 @@
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URL;
+import java.util.List;
 import java.util.LinkedList;
 import java.util.Queue;
 
+import org.json.JSONObject;
+import org.json.JSONException;
+
+
 public class SmartHomeServer
 {
-
 	public static final int DEFAULT_PORT = 1234;
-
+    private static final String API_KEY = "AIzaSyBkZYi2bPohSJCxkAqlqS_X-DLO9xTKikM";
+    private List<String> deviceTokens;
+    
 	private ServerSocket serverSocket;
 
 	// This is the status variable that will be true if a new status string
@@ -33,6 +42,7 @@ public class SmartHomeServer
 	public SmartHomeServer(int port) throws IOException
 	{
 		serverSocket = new ServerSocket(port);
+		deviceTokens = new LinkedList<String>(); 
 	}
 
 	public void arduino()
@@ -47,6 +57,8 @@ public class SmartHomeServer
 				// Retrieve and send the command through serial
 				String commandOut = commandQueue.poll();
 				System.out.println("Command sent: " + commandOut);
+				
+				//if (commandOut.substring(0, Math.min(s.length(), 7).equals("register"))
 			}
 
 			// Process the serial in and update the status/ status flag
@@ -148,6 +160,57 @@ public class SmartHomeServer
 
 		}
 	}
+
+	/*	
+	 * 	Registers a mobile device token retrieved from the GCM server to the local
+	 *  database. 
+	 */
+    private void registerDeviceToken(String token)
+    {
+    	if (token != null)
+    	{
+    		deviceTokens.add(token);
+    	}
+    }
+	
+    /*
+     *  Sends notification message to all tokens/devices registered to the server.
+     *  Uses HTTP POST protocol to send a downstream message to GCM server.
+     */
+    private void sendPushNotification(String message) throws IOException, JSONException
+    {
+        try
+        {
+            JSONObject jInputData = new JSONObject();
+            JSONObject jGcmData = new JSONObject();
+
+            jInputData.get(message);
+            jGcmData.put("data", jInputData);
+
+            // Create connection to send GCM Message Request
+            URL url = new URL("https://android.googleapis.com/gcm/send");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Authorization", "key=" + API_KEY);
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+
+            // TODO: send to all device tokens.
+            
+            // Send GCM message content.
+            OutputStream outputStream = conn.getOutputStream();
+            outputStream.write(jGcmData.toString().getBytes());
+            outputStream.flush();
+
+            // TODO: Read GCM response?
+        }
+        catch (IOException | JSONException e)
+        {
+            System.out.println("Unable to send GCM message. ");
+            e.printStackTrace();	    
+        }
+    }
+
 
 	public static void main(String[] args) throws IOException
 	{
