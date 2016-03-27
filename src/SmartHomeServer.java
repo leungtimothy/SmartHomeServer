@@ -9,6 +9,8 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Scanner;
 
+import com.pi4j.io.serial.*;
+
 public class SmartHomeServer
 {
 
@@ -37,23 +39,39 @@ public class SmartHomeServer
 
 	public void arduino()
 	{
-		
-		System.out.println("Arduino communication thread started.");
-		while (true)
-		{
-			// PLACE ANDROID SERIAL COMMUNICATION STUFF HERE
+		System.out.println("...Arduino communication thread started...");
+		// create an instance of the serial communications class
+		final Serial serial = SerialFactory.createInstance();
 
-			if (!commandQueue.isEmpty()) // New command
-			{
-				// Retrieve and send the command through serial
-				String commandOut = commandQueue.poll();
-				System.out.println("Command sent: " + commandOut);
+		// create and register the serial data listener
+		serial.addListener(new SerialDataListener() {
+			@Override
+			public void dataReceived(SerialDataEvent event) {
+				// update the status with the one received on RX
+				System.out.println("...data recieved");
+				status = event.getData();		
 			}
+		});
 
-			// Process the serial in and update the status/ status flag
 		
-			Thread.yield();
-		}
+		try {
+			serial.open("/dev/ttyACM0", 38400); // open up default USB port for	communication
+			while (true) {
+				if (!commandQueue.isEmpty()) { // New command
+					try {
+						// Retrieve and send the command through serial
+						String commandOut = commandQueue.poll();
+						System.out.println("Command sent: " + commandOut);
+
+						// process the command then send it to the Arduino
+						// PROCESS / DECIPHER COMMAND HERE
+						serial.write("commandOut");
+					} catch (Exception e) {e.printStackTrace();}
+				}
+				Thread.yield();
+			}
+		} catch (SerialPortException ex) {
+			System.out.println(" ==>> SERIAL SETUP FAILED : " + ex.getMessage()); return;}
 	}
 
 	/**
