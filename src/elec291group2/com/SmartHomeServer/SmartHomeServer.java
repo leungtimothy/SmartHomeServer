@@ -63,8 +63,10 @@ public class SmartHomeServer
 				String proRX = "";
 				
 				// systemStatus
-				if(rx.charAt(0) == '1')
+				if(rx.charAt(0) == '1'){
 					proRX.concat("2");
+					sendPushNotification("ALERT: INTRUDER DETECTED");
+				}
 				else if(rx.charAt(4) == '0' || rx.charAt(5) == '0' || rx.charAt(6) == '0')
 					proRX.concat("1");
 				else
