@@ -19,7 +19,7 @@ import java.util.Scanner;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONObject;
 import org.json.JSONException;
-
+import com.pi4j.io.serial.*;
 import elec291group2.com.SmartHomeServer.Constants;
 
 public class SmartHomeServer
@@ -50,33 +50,88 @@ public class SmartHomeServer
 
 	public void arduino()
 	{
-		
-		System.out.println("Arduino communication thread started.");
-		while (true)
-		{
-			// PLACE ANDROID SERIAL COMMUNICATION STUFF HERE
+		System.out.println("...Arduino communication thread started...");
+		// create an instance of the serial communications class
+		final Serial serial = SerialFactory.createInstance();
 
-			if (!commandQueue.isEmpty()) // New command
-			{
-				// Retrieve and send the command through serial
-				String commandOut = commandQueue.poll();
-				System.out.println("Command sent: " + commandOut);
+		// create and register the serial data listener
+		serial.addListener(new SerialDataListener() {
+			@Override
+			public void dataReceived(SerialDataEvent event) {
+				// update the status with the one received on RX
+				System.out.println("...data recieved");
+				String rx = event.getData();
+				String proRX = "";
 				
-				// If command begins with 'register'
-				if (commandOut
-					.substring( 0, Math.min(commandOut.length(), Constants.REGISTER.length()) )
-					.equals(Constants.REGISTER))
-				{
-					// Remaining part of string is the token
-					String token = commandOut.substring(Constants.REGISTER.length(), commandOut.length());
-					registerDeviceToken(token);
-				}
+				// systemStatus
+				if(rx.charAt(0) == '1')
+					proRX.concat("2");
+				else if(rx.charAt(4) == '0' || rx.charAt(5) == '0' || rx.charAt(6) == '0')
+					proRX.concat("1");
+				else
+					proRX.concat("0");
+				
+				// doorStatus
+				if(rx.charAt(1) == '1' && rx.charAt(4) == '1')
+					proRX.concat("3");
+				else if(rx.charAt(1) == '1' && rx.charAt(4) == '0')
+					proRX.concat("2");
+				else if(rx.charAt(1) == '0' && rx.charAt(4) == '1')
+					proRX.concat("1");
+				else
+					proRX.concat("0");
+				
+				// motionStatus
+				if(rx.charAt(2) == '1' && rx.charAt(5) == '1')
+					proRX.concat("3");
+				else if(rx.charAt(2) == '1' && rx.charAt(5) == '0')
+					proRX.concat("2");
+				else if(rx.charAt(2) == '0' && rx.charAt(5) == '1')
+					proRX.concat("1");
+				else
+					proRX.concat("0");
+				
+				// laser
+				if(rx.charAt(3) == '1' && rx.charAt(6) == '1')
+					proRX.concat("2");
+				else if(rx.charAt(6) == '1')
+					proRX.concat("1");
+				else
+					proRX.concat("0");
+				
+				// manualAlarm
+				if(rx.charAt(7) == '1')
+					proRX.concat("1");
+				else
+					proRX.concat("0");
+				
+				// lights
+				proRX.concat(rx.substring(8));
+				
+				// update status
+				status = proRX;	
 			}
+		});
 
-			// Process the serial in and update the status/ status flag
 		
-			Thread.yield();
-		}
+		try {
+			serial.open("/dev/ttyACM0", 38400); // open up default USB port for	communication
+			while (true) {
+				if (!commandQueue.isEmpty()) { // New command
+					try {
+						// Retrieve and send the command through serial
+						String commandOut = commandQueue.poll();
+						System.out.println("Command sent: " + commandOut);
+
+						// process the command then send it to the Arduino
+						// PROCESS / DECIPHER COMMAND HERE
+						serial.write("commandOut");
+					} catch (Exception e) {e.printStackTrace();}
+				}
+				Thread.yield();
+			}
+		} catch (SerialPortException ex) {
+			System.out.println(" ==>> SERIAL SETUP FAILED : " + ex.getMessage()); return;}
 	}
 
 	/**
