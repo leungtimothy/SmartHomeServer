@@ -15,16 +15,17 @@ import java.util.LinkedList;
 import java.util.Set;
 import java.util.Queue;
 import java.util.Scanner;
+
 import org.apache.commons.io.IOUtils;
 import org.json.JSONObject;
 import org.json.JSONException;
-import com.pi4j.io.serial.*;
+
 import elec291group2.com.SmartHomeServer.Constants;
 
 public class SmartHomeServer
 {
     private Set<String> deviceTokens;
-    
+
 	private ServerSocket serverSocket;
 
 	// This is the status variable that will be true if a new status string
@@ -44,99 +45,43 @@ public class SmartHomeServer
 	public SmartHomeServer(int port) throws IOException
 	{
 		serverSocket = new ServerSocket(port);
-		deviceTokens = new HashSet<String>(); 
+		deviceTokens = new HashSet<String>();
 	}
 
 	public void arduino()
 	{
-		System.out.println("...Arduino communication thread started...");
-		// create an instance of the serial communications class
-		final Serial serial = SerialFactory.createInstance();
 
-		// create and register the serial data listener
-		serial.addListener(new SerialDataListener() {
-			@Override
-			public void dataReceived(SerialDataEvent event) {
-				// update the status with the one received on RX
-				System.out.println("...data recieved");
-				String rx = event.getData();
-				String proRX = "";
-				
-				// systemStatus
-				if(rx.charAt(0) == '1')
-					proRX.concat("2");
-				else if(rx.charAt(4) == '0' || rx.charAt(5) == '0' || rx.charAt(6) == '0')
-					proRX.concat("1");
-				else
-					proRX.concat("0");
-				
-				// doorStatus
-				if(rx.charAt(1) == '1' && rx.charAt(4) == '1')
-					proRX.concat("3");
-				else if(rx.charAt(1) == '1' && rx.charAt(4) == '0')
-					proRX.concat("2");
-				else if(rx.charAt(1) == '0' && rx.charAt(4) == '1')
-					proRX.concat("1");
-				else
-					proRX.concat("0");
-				
-				// motionStatus
-				if(rx.charAt(2) == '1' && rx.charAt(5) == '1')
-					proRX.concat("3");
-				else if(rx.charAt(2) == '1' && rx.charAt(5) == '0')
-					proRX.concat("2");
-				else if(rx.charAt(2) == '0' && rx.charAt(5) == '1')
-					proRX.concat("1");
-				else
-					proRX.concat("0");
-				
-				// laser
-				if(rx.charAt(3) == '1' && rx.charAt(6) == '1')
-					proRX.concat("2");
-				else if(rx.charAt(6) == '1')
-					proRX.concat("1");
-				else
-					proRX.concat("0");
-				
-				// manualAlarm
-				if(rx.charAt(7) == '1')
-					proRX.concat("1");
-				else
-					proRX.concat("0");
-				
-				// lights
-				proRX.concat(rx.substring(8));
-				
-				// update status
+		System.out.println("Arduino communication thread started.");
+		while (true)
+		{
+			// PLACE ANDROID SERIAL COMMUNICATION STUFF HERE
 
-				status = proRX;	
-			}
-		});
+			if (!commandQueue.isEmpty()) // New command
+			{
+				// Retrieve and send the command through serial
+				String commandOut = commandQueue.poll();
+				System.out.println("Command sent: " + commandOut);
 
-		
-		try {
-			serial.open("/dev/ttyACM0", 38400); // open up default USB port for	communication
-			while (true) {
-				if (!commandQueue.isEmpty()) { // New command
-					try {
-						// Retrieve and send the command through serial
-						String commandOut = commandQueue.poll();
-						System.out.println("Command sent: " + commandOut);
-
-						// process the command then send it to the Arduino
-						// PROCESS / DECIPHER COMMAND HERE
-						serial.write("commandOut");
-					} catch (Exception e) {e.printStackTrace();}
+				// If command begins with 'register'
+				if (commandOut
+					.substring( 0, Math.min(commandOut.length(), Constants.REGISTER.length()) )
+					.equals(Constants.REGISTER))
+				{
+					// Remaining part of string is the token
+					String token = commandOut.substring(Constants.REGISTER.length(), commandOut.length());
+					registerDeviceToken(token);
 				}
-				Thread.yield();
 			}
-		} catch (SerialPortException ex) {
-			System.out.println(" ==>> SERIAL SETUP FAILED : " + ex.getMessage()); return;}
+
+			// Process the serial in and update the status/ status flag
+
+			Thread.yield();
+		}
 	}
 
 	/**
 	 * Run the server, listening for connections and handling them.
-	 * 
+	 *
 	 * @throws IOException
 	 *             if the main server socket is broken
 	 */
@@ -177,7 +122,7 @@ public class SmartHomeServer
 
 	/**
 	 * Handle one client connection. Returns when client disconnects.
-	 * 
+	 *
 	 * @param socket
 	 *            socket where client is connected
 	 * @throws IOException
@@ -201,12 +146,12 @@ public class SmartHomeServer
 		try
 		{
 			String lastStatus = "";
-			
+
 			while (true)
 			{
-				
-				
-				if (in.ready())  // Retrieve command from Android device, add to device queue 
+
+
+				if (in.ready())  // Retrieve command from Android device, add to device queue
 				{
 					String s = in.readLine();
 					if(s.equals("exit"))
@@ -214,7 +159,7 @@ public class SmartHomeServer
 						System.err.println("A client has ended the connection.");
 						break;
 					}
-					
+
 					//System.out.println("The new command is: " + s);
 					commandQueue.add(s);
 				}
@@ -225,7 +170,7 @@ public class SmartHomeServer
 					out.println(status);
 					out.flush();
 					lastStatus = status;
-					
+
 				}
 				//out.println("hi");
 				Thread.yield();
@@ -237,9 +182,9 @@ public class SmartHomeServer
 		System.err.println("Thread closed.");
 	}
 
-	/*	
+	/*
 	 * 	Registers a mobile device token retrieved from the GCM server to the local
-	 *  database. 
+	 *  database.
 	 */
     private void registerDeviceToken(String token)
     {
@@ -250,7 +195,7 @@ public class SmartHomeServer
     		sendPushNotification("Push notification test");
     	}
     }
-	
+
     /*
      *  Sends notification message to all tokens/devices registered to the server.
      *  Uses HTTP POST protocol to send a downstream message to GCM server.
@@ -263,13 +208,13 @@ public class SmartHomeServer
         	JSONObject jMessage = new JSONObject();
             JSONObject jGcmData = new JSONObject();
             String[] recipients = deviceTokens.toArray(new String[0]);
-            
-            // Set main message 'data' field     
+
+            // Set main message 'data' field
             jMessage.put("message", message);
             jGcmData.put("data", jMessage);
             // Set message recipients (which device tokens to push to)
             jGcmData.put("registration_ids", recipients);
-            	
+
             // Create connection to send GCM Message Request
             URL url = new URL("https://android.googleapis.com/gcm/send");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -283,7 +228,7 @@ public class SmartHomeServer
             outputStream.write(jGcmData.toString().getBytes());
 
             System.out.println("\nHTTP POST request sent: \n" + jGcmData.toString(4));
-            
+
             InputStream inputStream = conn.getInputStream();
             String resp = IOUtils.toString(inputStream);
             System.out.println("GCM server response:" + resp);
@@ -291,7 +236,7 @@ public class SmartHomeServer
         catch (IOException | JSONException e)
         {
             System.out.println("Unable to send GCM message. ");
-            e.printStackTrace();	    
+            e.printStackTrace();
         }
     }
 
@@ -300,7 +245,7 @@ public class SmartHomeServer
 	{
 		SmartHomeServer server = new SmartHomeServer(90);
 
-		
+
 		// Socket communication between Server and Android device
 		Thread serverThread = new Thread(new Runnable()
 		{
@@ -321,7 +266,7 @@ public class SmartHomeServer
 			}
 		});
 
-		
+
 		// Serial communication between server and Arduino
 		Thread arduinoThread = new Thread(new Runnable()
 		{
