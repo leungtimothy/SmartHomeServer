@@ -49,7 +49,56 @@ public class SmartHomeServer
 			public void dataReceived(SerialDataEvent event) {
 				// update the status with the one received on RX
 				System.out.println("...data recieved");
-				status = event.getData();		
+				String rx = event.getData();
+				String proRX = "";
+				
+				// systemStatus
+				if(rx.charAt(0) == '1')
+					proRX.concat("2");
+				else if(rx.charAt(4) == '0' || rx.charAt(5) == '0' || rx.charAt(6) == '0')
+					proRX.concat("1");
+				else
+					proRX.concat("0");
+				
+				// doorStatus
+				if(rx.charAt(1) == '1' && rx.charAt(4) == '1')
+					proRX.concat("3");
+				else if(rx.charAt(1) == '1' && rx.charAt(4) == '0')
+					proRX.concat("2");
+				else if(rx.charAt(1) == '0' && rx.charAt(4) == '1')
+					proRX.concat("1");
+				else
+					proRX.concat("0");
+				
+				// motionStatus
+				if(rx.charAt(2) == '1' && rx.charAt(5) == '1')
+					proRX.concat("3");
+				else if(rx.charAt(2) == '1' && rx.charAt(5) == '0')
+					proRX.concat("2");
+				else if(rx.charAt(2) == '0' && rx.charAt(5) == '1')
+					proRX.concat("1");
+				else
+					proRX.concat("0");
+				
+				// laser
+				if(rx.charAt(3) == '1' && rx.charAt(6) == '1')
+					proRX.concat("2");
+				else if(rx.charAt(6) == '1')
+					proRX.concat("1");
+				else
+					proRX.concat("0");
+				
+				// manualAlarm
+				if(rx.charAt(7) == '1')
+					proRX.concat("1");
+				else
+					proRX.concat("0");
+				
+				// lights
+				proRX.concat(rx.substring(8));
+				
+				// update status
+				status = proRX;	
 			}
 		});
 
