@@ -15,7 +15,6 @@ import java.util.LinkedList;
 import java.util.Set;
 import java.util.Queue;
 import java.util.Scanner;
-
 import org.apache.commons.io.IOUtils;
 import org.json.JSONObject;
 import org.json.JSONException;
@@ -109,6 +108,7 @@ public class SmartHomeServer
 				proRX.concat(rx.substring(8));
 				
 				// update status
+
 				status = proRX;	
 			}
 		});
