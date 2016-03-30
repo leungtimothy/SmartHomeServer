@@ -13,6 +13,7 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
+import java.util.Timer;
 import java.util.Queue;
 import java.util.Scanner;
 import org.apache.commons.io.IOUtils;
@@ -23,8 +24,9 @@ import elec291group2.com.SmartHomeServer.Constants;
 
 public class SmartHomeServer
 {
+	private String AUTHENTICATION_KEY = "1234567";
+	
     private Set<String> deviceTokens;
-    
 	private ServerSocket serverSocket;
 
 	// This is the status variable that will be true if a new status string
@@ -200,14 +202,43 @@ public class SmartHomeServer
 		// that we have more convenient ways to write Java primitive
 		// types to it.
 		PrintWriter out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true);
+		boolean authenticated = false;
+		int authentication_timeout = 1000;
+		
 		try
 		{
-			String lastStatus = "";
 			
-			while (true)
+		
+			long startTime = System.currentTimeMillis();
+			while((System.currentTimeMillis()-startTime) < authentication_timeout) // Set time out
 			{
-				
-				
+				if (in.ready())  // If command is retrieved  
+				{
+					String s = in.readLine();
+					if(s.equals(AUTHENTICATION_KEY))
+					{
+						authenticated = true;
+						System.err.println("The client has been verified.");
+						break;
+					}
+					else
+					{
+						authenticated = false;
+						System.err.println("The client has sent an incorrect key.");
+						break;
+					}
+				}
+				else
+				{
+					System.err.println("Waiting for authentication key.");
+				}
+				Thread.sleep(500);
+			}
+			
+			
+			String lastStatus = "";
+			while (authenticated == true)
+			{
 				if (in.ready())  // Retrieve command from Android device, add to device queue 
 				{
 					String s = in.readLine();
@@ -235,6 +266,11 @@ public class SmartHomeServer
 		} catch (Exception e)
 		{
 
+		}
+		
+		if(authenticated == false)
+		{
+			System.err.println("Authentication failed, invalid key or timeout reached.");
 		}
 		System.err.println("Thread closed.");
 	}
