@@ -215,6 +215,7 @@ public class SmartHomeServer
 				if (in.ready())  // If command is retrieved  
 				{
 					String s = in.readLine();
+					System.out.println("The key recieved is : " + s);
 					if(s.equals(AUTHENTICATION_KEY))
 					{
 						authenticated = true;
