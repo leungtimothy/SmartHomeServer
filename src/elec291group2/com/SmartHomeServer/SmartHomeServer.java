@@ -24,7 +24,8 @@ import elec291group2.com.SmartHomeServer.Constants;
 
 public class SmartHomeServer
 {
-	private String AUTHENTICATION_KEY = "1234567";
+	private static String AUTHENTICATION_KEY = "1234567";
+	private static String hashed_key;
 	
     private Set<String> deviceTokens;
 	private ServerSocket serverSocket;
@@ -216,7 +217,7 @@ public class SmartHomeServer
 				{
 					String s = in.readLine();
 					System.out.println("The key recieved is : " + s);
-					if(s.equals(AUTHENTICATION_KEY))
+					if(s.equals(hashed_key))
 					{
 						authenticated = true;
 						System.err.println("The client has been verified.");
@@ -267,6 +268,7 @@ public class SmartHomeServer
 				}
 				Thread.sleep(250);
 				Thread.yield();
+				//out.println("bob");
 			}
 		} catch (Exception e)
 		{
@@ -342,8 +344,8 @@ public class SmartHomeServer
 	public static void main(String[] args) throws IOException
 	{
 		SmartHomeServer server = new SmartHomeServer(90);
-
-		
+		hashed_key = encryptionFunction.password_hash(AUTHENTICATION_KEY);
+		//System.out.println(hashed_key);
 		// Socket communication between Server and Android device
 		Thread serverThread = new Thread(new Runnable()
 		{
