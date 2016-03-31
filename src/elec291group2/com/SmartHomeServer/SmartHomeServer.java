@@ -219,12 +219,16 @@ public class SmartHomeServer
 					{
 						authenticated = true;
 						System.err.println("The client has been verified.");
+						out.println("Verified");
+						out.flush();
 						break;
 					}
 					else
 					{
 						authenticated = false;
 						System.err.println("The client has sent an incorrect key.");
+						out.println("Wrong key");
+						out.flush();
 						break;
 					}
 				}
@@ -232,7 +236,7 @@ public class SmartHomeServer
 				{
 					System.err.println("Waiting for authentication key.");
 				}
-				Thread.sleep(500);
+				Thread.sleep(750);
 			}
 			
 			
@@ -248,7 +252,7 @@ public class SmartHomeServer
 						break;
 					}
 					
-					//System.out.println("The new command is: " + s);
+					System.out.println("The new command is: " + s);
 					commandQueue.add(s);
 				}
 
@@ -260,7 +264,7 @@ public class SmartHomeServer
 					lastStatus = status;
 					
 				}
-				//out.println("hi");
+				Thread.sleep(250);
 				Thread.yield();
 			}
 		} catch (Exception e)
@@ -370,7 +374,7 @@ public class SmartHomeServer
 		});
 
 		// Start the threads
-		arduinoThread.start();
+		//arduinoThread.start();
 		serverThread.start();
 
 	}
