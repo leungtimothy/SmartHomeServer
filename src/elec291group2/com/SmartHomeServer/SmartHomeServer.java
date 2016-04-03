@@ -22,6 +22,7 @@ import org.json.JSONObject;
 import org.json.JSONException;
 import com.pi4j.io.serial.*;
 import elec291group2.com.SmartHomeServer.Constants;
+import elec291group2.com.SmartHomeServer.Alarm;
 
 
 public class SmartHomeServer
@@ -335,7 +336,7 @@ public class SmartHomeServer
 	}
 
 	public static void main(String[] args) throws IOException {
-		SmartHomeServer server = new SmartHomeServer(90);
+		final SmartHomeServer server = new SmartHomeServer(90);
 
 		hashed_key = encryptionFunction.password_hash(AUTHENTICATION_KEY);
 		//System.out.println(hashed_key);
