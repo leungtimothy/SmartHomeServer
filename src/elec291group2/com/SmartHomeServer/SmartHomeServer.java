@@ -8,6 +8,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
@@ -37,7 +38,7 @@ public class SmartHomeServer
 
 	// This is the status string that the Arduino will send to the Android
 	// Device
-	String status = "";
+	String status = "0000000000 ";
 
 	// This is the Queue of commands that the Android device is sending
 	Queue<String> commandQueue = new LinkedList<String>();
@@ -222,7 +223,7 @@ public class SmartHomeServer
 				if (in.ready()) // If command is retrieved
 				{
 					String s = in.readLine();
-					System.out.println("The key recieved is : " + s);
+					System.out.println("The key recieved is:" + s);
 
 					if(s.equals(hashed_key))
 					{
@@ -255,14 +256,14 @@ public class SmartHomeServer
 						break;
 					}
 
-					System.out.println("The new command is: " + s);
+					System.out.println("The new command is:" + s);
 					commandQueue.add(s);
 				}
 
 				if (!lastStatus.equals(status)) // Send new status to Android
 												// device
 				{
-					System.out.println("The new status is : " + status);
+					System.out.println("The new status is:" + status);
 					out.println(status);
 					out.flush();
 					lastStatus = status;
@@ -338,7 +339,9 @@ public class SmartHomeServer
 		SmartHomeServer server = new SmartHomeServer(90);
 
 		hashed_key = encryptionFunction.password_hash(AUTHENTICATION_KEY);
-		//System.out.println(hashed_key);
+		System.out.println("The key is :" + AUTHENTICATION_KEY+".");
+		System.out.println("The hashed key is :" + hashed_key);
+		System.out.println("The server's IP is " + InetAddress.getLocalHost() + ".");
 
 		// Socket communication between Server and Android device
 		Thread serverThread = new Thread(new Runnable() {

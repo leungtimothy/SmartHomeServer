@@ -14,22 +14,25 @@ public class encryptionFunction
  //length of the password has to be greater or equal to 6
  static public String password_hash(String input){
      int password_length = input.length();
-     StringBuffer to_return = new StringBuffer();
-     
+//     StringBuffer to_return = new StringBuffer();
+     String to_return = "";
+     assert(password_length<100);
      //first layer
      String swap1 = swap(input, 0, password_length-1);
      String swap2 = swap(swap1, 1, password_length-2);
-     String swap3 = swap(swap1, 2, password_length-3);
+     String swap3 = swap(swap2, 2, password_length-3);
  
      //second layer
      char[] to_map = swap3.toCharArray();
      for (int i = 0; i < password_length; i++){
-         int ascii_value = to_map[i];
+         int ascii_value = (int) to_map[i];
          if (ascii_value >= 97 && ascii_value <= 122){
-             to_return.append(keys[ascii_value-97]);
+//             to_return.append(keys[ascii_value-97]);
+             to_return += keys[ascii_value-97];
          }
          else if(ascii_value >= 48 && ascii_value <= 57){
-             to_return.append(keys[ascii_value-48+26]);
+//             to_return.append(keys[ascii_value-48+26]);
+             to_return += keys[ascii_value-48+26];
          }
      }
      
