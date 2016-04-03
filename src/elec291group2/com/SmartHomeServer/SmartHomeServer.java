@@ -38,7 +38,7 @@ public class SmartHomeServer
 
 	// This is the status string that the Arduino will send to the Android
 	// Device
-	String status = "0000000000 ";
+	String status = "0000000000";
 
 	// This is the Queue of commands that the Android device is sending
 	Queue<String> commandQueue = new LinkedList<String>();
@@ -64,13 +64,17 @@ public class SmartHomeServer
 				// update the status with the one received on RX
 				System.out.println("=== NEW STATUS RECIEVED ===");
 				String rx = event.getData();
+				if(!rx.matches("[0,1]+")) { 
+					System.out.println("=== Invalid RX status: " + rx + " ===");
+					return;
+				}
 				System.out.println("RX: " + rx);
 				StringBuilder rxSB = new StringBuilder();
 
 				// systemStatus
 				if (rx.charAt(0) == '1') {
 					rxSB.append('2');
-					sendPushNotification("ALERT: INTRUDER DETECTED");
+					// sendPushNotification("ALERT: INTRUDER DETECTED");
 				} else if (rx.charAt(4) == '0' || rx.charAt(5) == '0' || rx.charAt(6) == '0')
 					rxSB.append('1');
 				else
@@ -124,9 +128,8 @@ public class SmartHomeServer
 				System.out.println("Light 4: " + rxSB.charAt(9));
 
 				// update status
-				String rxPro = rxSB.toString();
-				System.out.println("=== statusString: " + rxPro + " ===");
-				status = rxPro;
+				status = rxSB.toString();
+				System.out.println("=== statusString: " + status + " ===");
 			}
 		});
 
@@ -336,7 +339,7 @@ public class SmartHomeServer
 	}
 
 	public static void main(String[] args) throws IOException {
-		SmartHomeServer server = new SmartHomeServer(90);
+		SmartHomeServer server = new SmartHomeServer(6969);
 
 		hashed_key = encryptionFunction.password_hash(AUTHENTICATION_KEY);
 		System.out.println("The key is :" + AUTHENTICATION_KEY+".");
@@ -367,7 +370,7 @@ public class SmartHomeServer
 		});
 
 		// Start the threads
-		// arduinoThread.start();
+		arduinoThread.start();
 		serverThread.start();
 
 	}
