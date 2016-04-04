@@ -19,9 +19,7 @@ public class Alarm implements Runnable {
     	Thread t = new Thread(a);
     	t.start();
     	a.start();
-    	long startTime = System.currentTimeMillis();
-    	while (System.currentTimeMillis() - startTime < 10000){}
-    	System.out.println("Alarm stopped");
+
     	a.stop();
     }*/
     
