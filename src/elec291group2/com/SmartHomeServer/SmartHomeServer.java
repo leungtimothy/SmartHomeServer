@@ -25,13 +25,11 @@ import com.pi4j.io.serial.*;
 import elec291group2.com.SmartHomeServer.Constants;
 import elec291group2.com.SmartHomeServer.Alarm;
 
-
-public class SmartHomeServer
-{
+public class SmartHomeServer {
 	private static String AUTHENTICATION_KEY = "1234567";
 	private static String hashed_key;
-	
-    private Set<String> deviceTokens;
+
+	private Set<String> deviceTokens;
 	private ServerSocket serverSocket;
 
 	// This is the status variable that will be true if a new status string
@@ -41,6 +39,9 @@ public class SmartHomeServer
 	// Device
 	String status = "0000000000";
 	boolean commandFlag = true;
+	boolean alarmFlag = false;
+	boolean triggeredFlag = false;
+	Thread alarmThread = null;
 	// This is the Queue of commands that the Android device is sending
 	Queue<String> commandQueue = new LinkedList<String>();
 
@@ -63,23 +64,27 @@ public class SmartHomeServer
 			@Override
 			public void dataReceived(SerialDataEvent event) {
 				// update the status with the one received on RX
-				System.out.println("=== NEW STATUS RECIEVED ===");
 				String serialData = event.getData();
 				for (String rx : serialData.split(":")) {
-					if (rx.contains("ready")) {
+					if (rx.contains("r")) {
+						System.out.println("=== RDY FOR COMMAND ===");
 						commandFlag = true;
 						continue;
 					} else if (!rx.matches("[0,1]{13}")) {
 						System.out.println("=== Invalid RX status: " + rx + " ===");
 						continue;
 					}
+					System.out.println("=== NEW STATUS RECIEVED ===");
 					System.out.println("RX: " + rx);
 					StringBuilder rxSB = new StringBuilder();
 
 					// systemStatus
 					if (rx.charAt(0) == '1') {
 						rxSB.append('2');
-						// sendPushNotification("ALERT: INTRUDER DETECTED");
+						if (!triggeredFlag) {
+							sendPushNotification("xd!");
+							triggeredFlag = true;
+						}
 					} else if (rx.charAt(4) == '1' && rx.charAt(5) == '1' && rx.charAt(6) == '1')
 						rxSB.append('1');
 					else
@@ -118,15 +123,21 @@ public class SmartHomeServer
 					System.out.println("laserStatus: " + rxSB.charAt(3));
 
 					// manualAlarm
-					if (rx.charAt(7) == '1'){
+					if (rx.charAt(7) == '1') {
 						rxSB.append('1');
-						Thread t = new Thread(a);
-						t.start();
-						a.start();
-					}
-					else{
+						if (!alarmFlag) {
+							alarmThread = new Thread(a);
+							alarmThread.start();
+							a.start();
+							alarmFlag = true;
+						}
+					} else {
 						rxSB.append('0');
-						a.stop();
+						if (alarmFlag) {
+							a.stop();
+							alarmFlag = false;
+							triggeredFlag = false;
+						}
 					}
 					System.out.println("manualAlarm: " + rxSB.charAt(4));
 
@@ -238,15 +249,13 @@ public class SmartHomeServer
 					String s = in.readLine();
 					System.out.println("The key recieved is:" + s);
 
-					if(s.equals(hashed_key))
-					{
+					if (s.equals(hashed_key)) {
 						authenticated = true;
 						System.err.println("The client has been verified.");
 						out.println("Verified");
 						out.flush();
 						break;
-					}
-					else {
+					} else {
 						authenticated = false;
 						System.err.println("The client has sent an incorrect key.");
 						out.println("Wrong key");
@@ -260,46 +269,59 @@ public class SmartHomeServer
 			}
 
 			String lastStatus = "";
-			while (authenticated == true) {
-				String s = in.readLine();
-				if (s != null) // Retrieve command from Android device, add to
-								// device queue
-				{	
-					if (s.equals("exit")) {
-						System.err.println("A client has ended the connection.");
-						break;
-					}
-					else if (s
-							.substring( 0, 8 ).equals("register"))
-					{
-							// Remaining part of string is the token
-							String token = s.substring(8, s.length());
-							System.out.println(token);
-							registerDeviceToken(token);
-					}
 
-					System.out.println("The new command is:" + s);
-					commandQueue.add(s);
+			Thread commandHandle = new Thread(new Runnable() {
+				public void run() {
+					while (true) {
+						String s = null;
+						try {
+							s = in.readLine();
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						if (s != null) // Retrieve command from Android device,
+										// add to
+										// device queue
+						{
+							if (s.equals("exit")) {
+								System.err.println("A client has ended the connection.");
+								break;
+
+							} else if (s.substring(0, Math.min(s.length(), 8)).equals("register")) {
+								// Remaining part of string is the token
+								String token = s.substring(8, s.length());
+								System.out.println(token);
+								registerDeviceToken(token);
+							} else {
+								System.out.println("The new command is:" + s);
+								commandQueue.add(s);
+							}
+						}
+					}
+					out.close();
 				}
-						
+			});
+			Thread t = new Thread(commandHandle);
+			t.start();
+			while (authenticated == true) {
 				if (!lastStatus.equals(status)) // Send new status to Android
-												// device
+				// device
 				{
 					System.out.println("The new status is:" + status);
 					out.println(status);
-					out.flush();
+					// out.flush();
 					lastStatus = status;
 
 				}
-				Thread.sleep(250);
-				//System.out.println("Yielding");
+				// System.out.println("Yielding");
 				Thread.yield();
-				//out.println("bob");
+				// out.println("bob");
 			}
 		} catch (Exception e) {
-
+			//e.printStackTrace();
 		}
-	
+
 		if (authenticated == false) {
 			System.err.println("Authentication failed, invalid key or timeout reached.");
 		}
@@ -324,37 +346,43 @@ public class SmartHomeServer
 	 * server. Maximum # of recipients per push: 1000
 	 */
 	private void sendPushNotification(String message) {
-		try {
-			JSONObject jMessage = new JSONObject();
-			JSONObject jGcmData = new JSONObject();
-			String[] recipients = deviceTokens.toArray(new String[0]);
+		if (!deviceTokens.isEmpty()) {
+			System.out.println("devices not empty");
+			try {
+				JSONObject jMessage = new JSONObject();
+				JSONObject jGcmData = new JSONObject();
+				String[] recipients = deviceTokens.toArray(new String[0]);
 
-			// Set main message 'data' field
-			jMessage.put("message", message);
-			jGcmData.put("data", jMessage);
-			// Set message recipients (which device tokens to push to)
-			jGcmData.put("registration_ids", recipients);
+				// Set main message 'data' field
+				jMessage.put("message", message);
+				jGcmData.put("data", jMessage);
+				// Set message recipients (which device tokens to push to)
+				jGcmData.put("registration_ids", recipients);
+				System.out.println("JSONBOYZ");
 
-			// Create connection to send GCM Message Request
-			URL url = new URL("https://android.googleapis.com/gcm/send");
-			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-			conn.setRequestProperty("Content-Type", "application/json");
-			conn.setRequestProperty("Authorization", "key=" + Constants.API_KEY);
-			conn.setRequestMethod("POST");
-			conn.setDoOutput(true);
+				// Create connection to send GCM Message Request
+				URL url = new URL("https://android.googleapis.com/gcm/send");
+				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+				conn.setRequestProperty("Content-Type", "application/json");
+				conn.setRequestProperty("Authorization", "key=" + Constants.API_KEY);
+				conn.setRequestMethod("POST");
+				conn.setDoOutput(true);
 
-			// Send GCM message content.
-			OutputStream outputStream = conn.getOutputStream();
-			outputStream.write(jGcmData.toString().getBytes());
-
-			System.out.println("\nHTTP POST request sent: \n" + jGcmData.toString(4));
-
-			InputStream inputStream = conn.getInputStream();
-			String resp = IOUtils.toString(inputStream);
-			System.out.println("GCM server response:" + resp);
-		} catch (IOException | JSONException e) {
-			System.out.println("Unable to send GCM message. ");
-			e.printStackTrace();
+				System.out.println("POSBOYZ");
+				
+				// Send GCM message content.
+				OutputStream outputStream = conn.getOutputStream();
+				outputStream.write(jGcmData.toString().getBytes());
+				outputStream.flush();
+				
+				System.out.println("\nHTTP POST request sent: \n" + jGcmData.toString(4));
+				InputStream inputStream = conn.getInputStream();
+				String resp = IOUtils.toString(inputStream);
+				System.out.println("GCM server response:" + resp);
+			} catch (IOException | JSONException e) {
+				System.out.println("Unable to send GCM message. ");
+				e.printStackTrace();
+			}
 		}
 	}
 
@@ -362,7 +390,7 @@ public class SmartHomeServer
 		SmartHomeServer server = new SmartHomeServer(6969);
 
 		hashed_key = encryptionFunction.password_hash(AUTHENTICATION_KEY);
-		System.out.println("The key is :" + AUTHENTICATION_KEY+".");
+		System.out.println("The key is :" + AUTHENTICATION_KEY + ".");
 		System.out.println("The hashed key is :" + hashed_key);
 		System.out.println("The server's IP is " + InetAddress.getLocalHost() + ".");
 
@@ -390,7 +418,7 @@ public class SmartHomeServer
 		});
 
 		// Start the threads
-		//arduinoThread.start();
+		arduinoThread.start();
 		serverThread.start();
 
 	}
