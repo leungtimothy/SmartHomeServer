@@ -239,7 +239,8 @@ public class SmartHomeServer
 						out.println("Verified");
 						out.flush();
 						break;
-					} else {
+					}
+					else {
 						authenticated = false;
 						System.err.println("The client has sent an incorrect key.");
 						out.println("Wrong key");
@@ -254,19 +255,27 @@ public class SmartHomeServer
 
 			String lastStatus = "";
 			while (authenticated == true) {
-				if (in.ready()) // Retrieve command from Android device, add to
+				String s = in.readLine();
+				if (s != null) // Retrieve command from Android device, add to
 								// device queue
-				{
-					String s = in.readLine();
+				{	
 					if (s.equals("exit")) {
 						System.err.println("A client has ended the connection.");
 						break;
+					}
+					else if (s
+							.substring( 0, 8 ).equals("register"))
+					{
+							// Remaining part of string is the token
+							String token = s.substring(8, s.length());
+							System.out.println(token);
+							registerDeviceToken(token);
 					}
 
 					System.out.println("The new command is:" + s);
 					commandQueue.add(s);
 				}
-				
+						
 				if (!lastStatus.equals(status)) // Send new status to Android
 												// device
 				{
@@ -277,6 +286,7 @@ public class SmartHomeServer
 
 				}
 				Thread.sleep(250);
+				//System.out.println("Yielding");
 				Thread.yield();
 				//out.println("bob");
 			}
@@ -298,7 +308,7 @@ public class SmartHomeServer
 		if (token != null) {
 			deviceTokens.add(token);
 			System.out.println("Device token successfully registered!");
-			sendPushNotification("Push notification test");
+			sendPushNotification("Your device will recieve emergency push notifications about your house.");
 		}
 	}
 
@@ -374,7 +384,7 @@ public class SmartHomeServer
 		});
 
 		// Start the threads
-		arduinoThread.start();
+		//arduinoThread.start();
 		serverThread.start();
 
 	}
