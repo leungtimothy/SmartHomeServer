@@ -40,7 +40,7 @@ public class SmartHomeServer
 	// This is the status string that the Arduino will send to the Android
 	// Device
 	String status = "0000000000";
-
+	boolean commandFlag = true;
 	// This is the Queue of commands that the Android device is sending
 	Queue<String> commandQueue = new LinkedList<String>();
 
@@ -64,73 +64,78 @@ public class SmartHomeServer
 			public void dataReceived(SerialDataEvent event) {
 				// update the status with the one received on RX
 				System.out.println("=== NEW STATUS RECIEVED ===");
-				String rx = event.getData();
-				if(!rx.matches("[0,1]+")) { 
-					System.out.println("=== Invalid RX status: " + rx + " ===");
-					return;
+				String serialData = event.getData();
+				for (String rx : serialData.split(":")) {
+					if (rx.contains("ready")) {
+						commandFlag = true;
+						continue;
+					} else if (!rx.matches("[0,1]{13}")) {
+						System.out.println("=== Invalid RX status: " + rx + " ===");
+						continue;
+					}
+					System.out.println("RX: " + rx);
+					StringBuilder rxSB = new StringBuilder();
+
+					// systemStatus
+					if (rx.charAt(0) == '1') {
+						rxSB.append('2');
+						// sendPushNotification("ALERT: INTRUDER DETECTED");
+					} else if (rx.charAt(4) == '1' && rx.charAt(5) == '1' && rx.charAt(6) == '1')
+						rxSB.append('1');
+					else
+						rxSB.append('0');
+					System.out.println("systemStatus: " + rxSB.charAt(0));
+
+					// doorStatus
+					if (rx.charAt(1) == '1' && rx.charAt(4) == '1')
+						rxSB.append('3');
+					else if (rx.charAt(1) == '1' && rx.charAt(4) == '0')
+						rxSB.append('2');
+					else if (rx.charAt(1) == '0' && rx.charAt(4) == '1')
+						rxSB.append('1');
+					else
+						rxSB.append('0');
+					System.out.println("doorStatus: " + rxSB.charAt(1));
+
+					// motionStatus
+					if (rx.charAt(2) == '1' && rx.charAt(5) == '1')
+						rxSB.append('3');
+					else if (rx.charAt(2) == '1' && rx.charAt(5) == '0')
+						rxSB.append('2');
+					else if (rx.charAt(2) == '0' && rx.charAt(5) == '1')
+						rxSB.append('1');
+					else
+						rxSB.append('0');
+					System.out.println("motionStatus: " + rxSB.charAt(2));
+
+					// laser
+					if (rx.charAt(3) == '1' && rx.charAt(6) == '1')
+						rxSB.append('2');
+					else if (rx.charAt(6) == '1')
+						rxSB.append('1');
+					else
+						rxSB.append('0');
+					System.out.println("laserStatus: " + rxSB.charAt(3));
+
+					// manualAlarm
+					if (rx.charAt(7) == '1')
+						rxSB.append('1');
+					else
+						rxSB.append('0');
+					System.out.println("manualAlarm: " + rxSB.charAt(4));
+
+					// lights
+					rxSB.append(rx.substring(8));
+					System.out.println("Light 0: " + rxSB.charAt(5));
+					System.out.println("Light 1: " + rxSB.charAt(6));
+					System.out.println("Light 2: " + rxSB.charAt(7));
+					System.out.println("Light 3: " + rxSB.charAt(8));
+					System.out.println("Light 4: " + rxSB.charAt(9));
+
+					// update status
+					status = rxSB.toString();
+					System.out.println("=== statusString: " + status + " ===");
 				}
-				System.out.println("RX: " + rx);
-				StringBuilder rxSB = new StringBuilder();
-
-				// systemStatus
-				if (rx.charAt(0) == '1') {
-					rxSB.append('2');
-					// sendPushNotification("ALERT: INTRUDER DETECTED");
-				} else if (rx.charAt(4) == '0' || rx.charAt(5) == '0' || rx.charAt(6) == '0')
-					rxSB.append('1');
-				else
-					rxSB.append('0');
-				System.out.println("systemStatus: " + rxSB.charAt(0));
-
-				// doorStatus
-				if (rx.charAt(1) == '1' && rx.charAt(4) == '1')
-					rxSB.append('3');
-				else if (rx.charAt(1) == '1' && rx.charAt(4) == '0')
-					rxSB.append('2');
-				else if (rx.charAt(1) == '0' && rx.charAt(4) == '1')
-					rxSB.append('1');
-				else
-					rxSB.append('0');
-				System.out.println("doorStatus: " + rxSB.charAt(1));
-
-				// motionStatus
-				if (rx.charAt(2) == '1' && rx.charAt(5) == '1')
-					rxSB.append('3');
-				else if (rx.charAt(2) == '1' && rx.charAt(5) == '0')
-					rxSB.append('2');
-				else if (rx.charAt(2) == '0' && rx.charAt(5) == '1')
-					rxSB.append('1');
-				else
-					rxSB.append('0');
-				System.out.println("motionStatus: " + rxSB.charAt(2));
-
-				// laser
-				if (rx.charAt(3) == '1' && rx.charAt(6) == '1')
-					rxSB.append('2');
-				else if (rx.charAt(6) == '1')
-					rxSB.append('1');
-				else
-					rxSB.append('0');
-				System.out.println("laserStatus: " + rxSB.charAt(3));
-
-				// manualAlarm
-				if (rx.charAt(7) == '1')
-					rxSB.append('1');
-				else
-					rxSB.append('0');
-				System.out.println("manualAlarm: " + rxSB.charAt(4));
-
-				// lights
-				rxSB.append(rx.substring(8));
-				System.out.println("Light 0: " + rxSB.charAt(5));
-				System.out.println("Light 1: " + rxSB.charAt(6));
-				System.out.println("Light 2: " + rxSB.charAt(7));
-				System.out.println("Light 3: " + rxSB.charAt(8));
-				System.out.println("Light 4: " + rxSB.charAt(9));
-
-				// update status
-				status = rxSB.toString();
-				System.out.println("=== statusString: " + status + " ===");
 			}
 		});
 
@@ -138,15 +143,13 @@ public class SmartHomeServer
 			serial.open("/dev/ttyACM0", 38400); // open up default USB port for
 												// communication
 			while (true) {
-				if (!commandQueue.isEmpty()) { // New command
+				if (!commandQueue.isEmpty() && commandFlag) { // New command
 					try {
 						// Retrieve and send the command through serial
 						String commandOut = commandQueue.poll();
 						System.out.println("Command sent: " + commandOut);
-
-						// process the command then send it to the Arduino
-						// PROCESS / DECIPHER COMMAND HERE
-						serial.write("commandOut");
+						serial.write(commandOut);
+						commandFlag = false;
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -263,7 +266,7 @@ public class SmartHomeServer
 					System.out.println("The new command is:" + s);
 					commandQueue.add(s);
 				}
-
+				
 				if (!lastStatus.equals(status)) // Send new status to Android
 												// device
 				{
@@ -280,7 +283,7 @@ public class SmartHomeServer
 		} catch (Exception e) {
 
 		}
-
+	
 		if (authenticated == false) {
 			System.err.println("Authentication failed, invalid key or timeout reached.");
 		}
