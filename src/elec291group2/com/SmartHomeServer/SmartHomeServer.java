@@ -57,7 +57,7 @@ public class SmartHomeServer
 		System.out.println("...Arduino communication thread started...");
 		// create an instance of the serial communications class
 		final Serial serial = SerialFactory.createInstance();
-
+		Alarm a = new Alarm();
 		// create and register the serial data listener
 		serial.addListener(new SerialDataListener() {
 			@Override
@@ -118,10 +118,16 @@ public class SmartHomeServer
 					System.out.println("laserStatus: " + rxSB.charAt(3));
 
 					// manualAlarm
-					if (rx.charAt(7) == '1')
+					if (rx.charAt(7) == '1'){
 						rxSB.append('1');
-					else
+						Thread t = new Thread(a);
+						t.start();
+						a.start();
+					}
+					else{
 						rxSB.append('0');
+						a.stop();
+					}
 					System.out.println("manualAlarm: " + rxSB.charAt(4));
 
 					// lights
