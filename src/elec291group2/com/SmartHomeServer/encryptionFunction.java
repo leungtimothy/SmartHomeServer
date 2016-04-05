@@ -41,7 +41,6 @@ public class encryptionFunction
  
  //messages have to share the same length
  static public String encrypt_message(String message){
-     int message_length = message.length();
      StringBuffer to_return = new StringBuffer();
      to_return.append(message_id);
      to_return.append(message);
@@ -49,7 +48,6 @@ public class encryptionFunction
  }
  
  static public String decrypt_message(String message){
-     int message_length = message.length();
      String useful_info = message.replace("elec291project2", "");
      return useful_info;
  }

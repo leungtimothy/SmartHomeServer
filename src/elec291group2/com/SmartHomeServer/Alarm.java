@@ -1,7 +1,6 @@
 package elec291group2.com.SmartHomeServer;
 
 import java.io.File;
-import java.io.IOException;
 
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;

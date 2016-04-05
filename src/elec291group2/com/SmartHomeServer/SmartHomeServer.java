@@ -15,9 +15,7 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
-import java.util.Timer;
 import java.util.Queue;
-import java.util.Scanner;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONObject;
 import org.json.JSONException;
@@ -41,6 +39,7 @@ public class SmartHomeServer {
 	boolean commandFlag = true;
 	boolean alarmFlag = false;
 	boolean triggeredFlag = false;
+	boolean failedPWFlag = false;
 	Thread alarmThread = null;
 	// This is the Queue of commands that the Android device is sending
 	Queue<String> commandQueue = new LinkedList<String>();
@@ -64,13 +63,19 @@ public class SmartHomeServer {
 			@Override
 			public void dataReceived(SerialDataEvent event) {
 				// update the status with the one received on RX
+				try {
+					Thread.sleep(10);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 				String serialData = event.getData();
 				for (String rx : serialData.split(":")) {
 					if (rx.contains("r")) {
-						System.out.println("=== RDY FOR COMMAND ===");
 						commandFlag = true;
+						System.out.println("=== READY FOR COMMAND ===");
 						continue;
-					} else if (!rx.matches("[0,1]{13}")) {
+					} else if (!rx.matches("[0,1]{14}")) {
 						System.out.println("=== Invalid RX status: " + rx + " ===");
 						continue;
 					}
@@ -85,24 +90,22 @@ public class SmartHomeServer {
 							sendPushNotification("xd!");
 							triggeredFlag = true;
 						}
-					} else if (rx.charAt(4) == '1' && rx.charAt(5) == '1' && rx.charAt(6) == '1')
+
+					}
+					else if (rx.charAt(0) == '0' && rx.charAt(1) == '1') {
+						rxSB.append('3');
+						if(!failedPWFlag) {
+							sendPushNotification("bad pw xd!");
+							failedPWFlag = true;
+						}
+					}
+					else if (rx.charAt(5) == '1' && rx.charAt(6) == '1' && rx.charAt(7) == '1')
 						rxSB.append('1');
 					else
 						rxSB.append('0');
 					System.out.println("systemStatus: " + rxSB.charAt(0));
 
 					// doorStatus
-					if (rx.charAt(1) == '1' && rx.charAt(4) == '1')
-						rxSB.append('3');
-					else if (rx.charAt(1) == '1' && rx.charAt(4) == '0')
-						rxSB.append('2');
-					else if (rx.charAt(1) == '0' && rx.charAt(4) == '1')
-						rxSB.append('1');
-					else
-						rxSB.append('0');
-					System.out.println("doorStatus: " + rxSB.charAt(1));
-
-					// motionStatus
 					if (rx.charAt(2) == '1' && rx.charAt(5) == '1')
 						rxSB.append('3');
 					else if (rx.charAt(2) == '1' && rx.charAt(5) == '0')
@@ -111,19 +114,30 @@ public class SmartHomeServer {
 						rxSB.append('1');
 					else
 						rxSB.append('0');
+					System.out.println("doorStatus: " + rxSB.charAt(1));
+
+					// motionStatus
+					if (rx.charAt(3) == '1' && rx.charAt(6) == '1')
+						rxSB.append('3');
+					else if (rx.charAt(3) == '1' && rx.charAt(6) == '0')
+						rxSB.append('2');
+					else if (rx.charAt(3) == '0' && rx.charAt(6) == '1')
+						rxSB.append('1');
+					else
+						rxSB.append('0');
 					System.out.println("motionStatus: " + rxSB.charAt(2));
 
 					// laser
-					if (rx.charAt(3) == '1' && rx.charAt(6) == '1')
+					if (rx.charAt(4) == '1' && rx.charAt(7) == '1')
 						rxSB.append('2');
-					else if (rx.charAt(6) == '1')
+					else if (rx.charAt(7) == '1')
 						rxSB.append('1');
 					else
 						rxSB.append('0');
 					System.out.println("laserStatus: " + rxSB.charAt(3));
 
 					// manualAlarm
-					if (rx.charAt(7) == '1') {
+					if (rx.charAt(8) == '1') {
 						rxSB.append('1');
 						if (!alarmFlag) {
 							alarmThread = new Thread(a);
@@ -136,13 +150,14 @@ public class SmartHomeServer {
 						if (alarmFlag) {
 							a.stop();
 							alarmFlag = false;
+							failedPWFlag = false;
 							triggeredFlag = false;
 						}
 					}
 					System.out.println("manualAlarm: " + rxSB.charAt(4));
 
 					// lights
-					rxSB.append(rx.substring(8));
+					rxSB.append(rx.substring(9));
 					System.out.println("Light 0: " + rxSB.charAt(5));
 					System.out.println("Light 1: " + rxSB.charAt(6));
 					System.out.println("Light 2: " + rxSB.charAt(7));
