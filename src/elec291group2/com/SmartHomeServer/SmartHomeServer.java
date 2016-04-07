@@ -36,11 +36,16 @@ public class SmartHomeServer {
 	// This is the status string that the Arduino will send to the Android
 	// Device
 	String status = "0000000000";
+	
+	// These flags are used to avoid repeating certain methods
 	boolean commandFlag = true;
 	boolean alarmFlag = false;
 	boolean triggeredFlag = false;
 	boolean failedPWFlag = false;
+	
+	// This thread is used to sound the alarm
 	Thread alarmThread = null;
+	
 	// This is the Queue of commands that the Android device is sending
 	Queue<String> commandQueue = new LinkedList<String>();
 
@@ -62,93 +67,106 @@ public class SmartHomeServer {
 		serial.addListener(new SerialDataListener() {
 			@Override
 			public void dataReceived(SerialDataEvent event) {
-				// update the status with the one received on RX
+				// wait for all data to arrive
 				try {
 					Thread.sleep(10);
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				String serialData = event.getData();
+				// split the serial data and process each string
 				for (String rx : serialData.split(":")) {
+					// tell main loop of thread to send next command
 					if (rx.contains("r")) {
 						commandFlag = true;
 						System.out.println("=== READY FOR COMMAND ===");
-						continue;
-					} else if (!rx.matches("[0,1]{14}")) {
+						continue;	
+					} 
+					// update the status with the one received on RX
+					else if (!rx.matches("[0,1]{14}")) {	// this regex means that it is a new status string
 						System.out.println("=== Invalid RX status: " + rx + " ===");
 						continue;
 					}
 					System.out.println("=== NEW STATUS RECIEVED ===");
 					System.out.println("RX: " + rx);
-					StringBuilder rxSB = new StringBuilder();
+					StringBuilder rxSB = new StringBuilder();		// build the new status string for the Android applications
 
 					// systemStatus
-					if (rx.charAt(0) == '1') {
+					if (rx.charAt(0) == '1') {														// system triggered
 						rxSB.append('2');
 						if (!triggeredFlag) {
-							sendPushNotification("xd!");
+							Thread pushThread1 = new Thread(new Runnable() {
+								public void run() {
+									sendPushNotification("Intruder Alert !!");
+								}
+							});
+							pushThread1.start();
 							triggeredFlag = true;
 						}
 
 					}
-					else if (rx.charAt(0) == '0' && rx.charAt(1) == '1') {
+					else if (rx.charAt(0) == '0' && rx.charAt(1) == '1') {							// password entry failed
 						rxSB.append('3');
 						if(!failedPWFlag) {
-							sendPushNotification("bad pw xd!");
+							Thread pushThread = new Thread(new Runnable() {
+								public void run() {
+									sendPushNotification("Password Entry Failed !!");
+								}
+							});
+							pushThread.start();
 							failedPWFlag = true;
 						}
 					}
-					else if (rx.charAt(5) == '1' && rx.charAt(6) == '1' && rx.charAt(7) == '1')
+					else if (rx.charAt(5) == '1' && rx.charAt(6) == '1' && rx.charAt(7) == '1')		// system fully armed
 						rxSB.append('1');
-					else
+					else																			// system not fully armed
 						rxSB.append('0');
 					System.out.println("systemStatus: " + rxSB.charAt(0));
 
 					// doorStatus
-					if (rx.charAt(2) == '1' && rx.charAt(5) == '1')
+					if (rx.charAt(2) == '1' && rx.charAt(5) == '1')				// door alarm triggered
 						rxSB.append('3');
-					else if (rx.charAt(2) == '1' && rx.charAt(5) == '0')
+					else if (rx.charAt(2) == '1' && rx.charAt(5) == '0')		// door armed
 						rxSB.append('2');
-					else if (rx.charAt(2) == '0' && rx.charAt(5) == '1')
+					else if (rx.charAt(2) == '0' && rx.charAt(5) == '1')		// door disarmed and open
 						rxSB.append('1');
-					else
+					else														// door disarmed and closed
 						rxSB.append('0');
 					System.out.println("doorStatus: " + rxSB.charAt(1));
 
 					// motionStatus
-					if (rx.charAt(3) == '1' && rx.charAt(6) == '1')
+					if (rx.charAt(3) == '1' && rx.charAt(6) == '1')				// motion alarm triggered
 						rxSB.append('3');
-					else if (rx.charAt(3) == '1' && rx.charAt(6) == '0')
+					else if (rx.charAt(3) == '1' && rx.charAt(6) == '0')		// motion armed
 						rxSB.append('2');
-					else if (rx.charAt(3) == '0' && rx.charAt(6) == '1')
+					else if (rx.charAt(3) == '0' && rx.charAt(6) == '1')		// motion detected but disarmed
 						rxSB.append('1');
 					else
-						rxSB.append('0');
+						rxSB.append('0');										// motion not detected and disarmed
 					System.out.println("motionStatus: " + rxSB.charAt(2));
 
 					// laser
-					if (rx.charAt(4) == '1' && rx.charAt(7) == '1')
+					if (rx.charAt(4) == '1' && rx.charAt(7) == '1')				// laser alarm triggered
 						rxSB.append('2');
-					else if (rx.charAt(7) == '1')
+					else if (rx.charAt(7) == '1')								// laser armed
 						rxSB.append('1');
 					else
-						rxSB.append('0');
+						rxSB.append('0');										// laser diarmed
 					System.out.println("laserStatus: " + rxSB.charAt(3));
 
 					// manualAlarm
-					if (rx.charAt(8) == '1') {
+					if (rx.charAt(8) == '1') {									// sound alarm
 						rxSB.append('1');
 						if (!alarmFlag) {
 							alarmThread = new Thread(a);
-							alarmThread.start();
+							alarmThread.start();								// start new alarm thread
 							a.start();
 							alarmFlag = true;
 						}
-					} else {
+					} else {													// turn off alarm
 						rxSB.append('0');
 						if (alarmFlag) {
-							a.stop();
+							a.stop();											// kill alarm thread
 							alarmFlag = false;
 							failedPWFlag = false;
 							triggeredFlag = false;
@@ -172,12 +190,11 @@ public class SmartHomeServer {
 		});
 
 		try {
-			serial.open("/dev/ttyACM0", 38400); // open up default USB port for
-												// communication
+			serial.open("/dev/ttyACM0", 38400); // open up default USB port for communication
 			while (true) {
-				if (!commandQueue.isEmpty() && commandFlag) { // New command
+				// send new command if we have one and Arduino is ready
+				if (!commandQueue.isEmpty() && commandFlag) {
 					try {
-						// Retrieve and send the command through serial
 						String commandOut = commandQueue.poll();
 						System.out.println("Command sent: " + commandOut);
 						serial.write(commandOut);
@@ -351,7 +368,12 @@ public class SmartHomeServer {
 		if (token != null) {
 			deviceTokens.add(token);
 			System.out.println("Device token successfully registered!");
-			sendPushNotification("Your device will recieve emergency push notifications about your house.");
+			Thread pushThread3 = new Thread(new Runnable() {
+				public void run() {
+					sendPushNotification("Your device will now receive notifications about your home.");
+				}
+			});
+			pushThread3.start();
 		}
 	}
 
@@ -373,8 +395,7 @@ public class SmartHomeServer {
 				jGcmData.put("data", jMessage);
 				// Set message recipients (which device tokens to push to)
 				jGcmData.put("registration_ids", recipients);
-				System.out.println("JSONBOYZ");
-
+				
 				// Create connection to send GCM Message Request
 				URL url = new URL("https://android.googleapis.com/gcm/send");
 				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -382,18 +403,16 @@ public class SmartHomeServer {
 				conn.setRequestProperty("Authorization", "key=" + Constants.API_KEY);
 				conn.setRequestMethod("POST");
 				conn.setDoOutput(true);
-
-				System.out.println("POSBOYZ");
 				
 				// Send GCM message content.
 				OutputStream outputStream = conn.getOutputStream();
 				outputStream.write(jGcmData.toString().getBytes());
 				outputStream.flush();
 				
-				System.out.println("\nHTTP POST request sent: \n" + jGcmData.toString(4));
-				InputStream inputStream = conn.getInputStream();
-				String resp = IOUtils.toString(inputStream);
-				System.out.println("GCM server response:" + resp);
+				//System.out.println("\nHTTP POST request sent: \n" + jGcmData.toString(4));
+				//InputStream inputStream = conn.getInputStream();
+				//String resp = IOUtils.toString(inputStream);
+				//System.out.println("GCM server response:" + resp);
 			} catch (IOException | JSONException e) {
 				System.out.println("Unable to send GCM message. ");
 				e.printStackTrace();
@@ -402,7 +421,7 @@ public class SmartHomeServer {
 	}
 
 	public static void main(String[] args) throws IOException {
-		SmartHomeServer server = new SmartHomeServer(6969);
+		SmartHomeServer server = new SmartHomeServer(8888);
 
 		hashed_key = encryptionFunction.password_hash(AUTHENTICATION_KEY);
 		System.out.println("The key is :" + AUTHENTICATION_KEY + ".");
